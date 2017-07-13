@@ -1,0 +1,12 @@
+# vacuum all databases every night (full vacuum on Sunday night, lazy vacuum every other night)
+45 3 * * 0 root nice -n 19 su - postgres -c "vacuumdb --all --full --analyze" 2>&1 | tee /var/log/dbMaintenance/fullVacuum$(date +\%Y\%m\%d\%H\%M\%S).log | mail -s "MuniciPAY Production fullVacuum Log" systems@municipay.com
+45 3 * * 1-6 root nice -n 19 su - postgres -c "vacuumdb --all --analyze" 2>&1 | tee /var/log/dbMaintenance/lazyVacuum$(date +\%Y\%m\%d\%H\%M\%S).log | mail -s "MuniciPAY Production lazyVacuum log" systems@municipay.com
+
+# re-index all databases once a week
+0 3 * * 0 root nice -n 19 su - postgres -c 'psql -t -c "select datname from pg_database order by datname;" | xargs -n 1 -I"{}" -- psql -U postgres {} -c "reindex database {};"' 2>&1 | tee /var/log/dbMaintenance/reindex$(date +\%Y\%m\%d\%H\%M\%S).log | mail -s "MuniciPAY Production reindex log" systems@municipay.com
+
+# delete dbMaintenance logs greater than 30 days
+0 0 * * * root nice -n 19 find /var/log/dbMaintenance -type f -mtime +30 -delete
+
+# email syslog to review cronjobs
+0 0 * * * root nice -n 19 cat /var/log/syslog | mail -s "MuniciPAY Production syslog" systems@municipay.com
